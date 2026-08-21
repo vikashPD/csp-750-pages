@@ -796,24 +796,7 @@
   function resumeAll(){ lastTick = Date.now(); }
   function dwellProps(){ tick(); var o={}; BLOCKS.forEach(function(b){ o['sec_'+b[0]] = Math.round(dwellMs[b[0]]/1000); }); o.max_block = BLOCKS[Math.max(0,maxIdx)][0]; return o; }
 
-  /* backend consent (source of truth) */
-  var API = { base:'https://csp-api.i2e1.in', path:'/dominance/consent' };
-  var CSP_ID_FIXED = '';
   var apiStatus='idle', apiErr='', apiHttp=0;
-  function qp(n){ try{ return new URLSearchParams(location.search).get(n)||''; }catch(e){ return ''; } }
-  function cspId(){ var el=document.getElementById('cspidTok'); var v=el?(el.textContent||'').trim():'';
-    if (v && v.indexOf('{')<0) return v; return window.CSP_ID || CSP_ID_FIXED || qp('cspId') || qp('csp_id') || ''; }
-  function cspJwt(){ return window.CSP_JWT || qp('token') || qp('jwt') || ''; }
-  function postConsent(consent, attempt){
-    var id=cspId(); if(!id){ apiStatus='skipped'; apiErr='no_csp_id'; return; }
-    var headers={'Content-Type':'application/json'}; var tok=cspJwt(); if(tok) headers['Authorization']='Bearer '+tok;
-    apiStatus='saving';
-    fetch(API.base+API.path,{method:'POST',headers:headers,body:JSON.stringify({csp_id:id,consent_choice:consent,flow:FLOW}),keepalive:true})
-      .then(function(r){ apiHttp=r.status; if(r.ok){apiStatus='ok';return;}
-        if(r.status>=500&&attempt<3){ setTimeout(function(){postConsent(consent,attempt+1);},800*attempt); return; }
-        apiStatus='error'; apiErr='http_'+r.status; })
-      .catch(function(){ if(attempt<3){ setTimeout(function(){postConsent(consent,attempt+1);},800*attempt); return; } apiStatus='error'; apiErr='network'; });
-  }
 
   function currentChoice(){
     var n=document.getElementById('optNew'), l=document.getElementById('optLater');
@@ -844,7 +827,6 @@
     var cp = dwellProps(); cp.choice=ch; cp.lang=document.documentElement.lang||'hi';
     cp.lang_toggles=langToggles; cp.selection_changes=selectionChanges; cp.seconds=secs();
     track(ch==='new'?'Confirmed':'Declined', cp);
-    if (ch==='new') postConsent('OPTED_IN', 1);
     pauseAll(); contentOpen=false;
   });
   on('auditBtn', function(){ track('Progress', { milestone:'audit_action' }); });
